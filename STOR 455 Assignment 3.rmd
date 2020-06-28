@@ -1,0 +1,205 @@
+---
+title: 'Stor 455 Assignment #3'
+author: "Michael Taffe"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd("~/Desktop/GitHub")
+library(readr)
+library(mosaic)
+library(Stat2Data)
+library(dplyr)
+library(car)
+library(leaps)
+
+AmesTrain2 <- read_csv("AmesTrain2.csv")
+
+AmesTrain2 <- read_csv("AmesTrain2.csv")
+#source("ShowSubsets.R")
+```
+
+# Part 1
+
+
+```{r}
+mod1= lm(Price~LotFrontage + LotArea + YearBuilt + YearRemodel + BasementFinSF + BasementSF + FirstSF + SecondSF + GroundSF + BasementFBath + BasementHBath + FullBath + HalfBath + Bedroom + TotalRooms + Fireplaces + GarageCars + GarageSF + WoodDeckSF + OpenPorchSF + EnclosedPorchSF + ScreenPorchSF, data=AmesTrain2)
+
+
+```
+
+## Best Subsets
+```{r}
+all=regsubsets(Price~LotFrontage + LotArea + YearBuilt + YearRemodel + BasementFinSF + BasementSF + FirstSF + SecondSF + GroundSF + BasementFBath + BasementHBath + FullBath + HalfBath + Bedroom + TotalRooms + Fireplaces + GarageCars + GarageSF + WoodDeckSF + OpenPorchSF + EnclosedPorchSF + ScreenPorchSF, data=AmesTrain2, nvmax= 22, nbest=2)
+
+#ShowSubsets(all)
+
+```
+The predictors that provide the lowest Mallow's Cp together are LotFrontage, LotArea, YearBuilt, YearRemodel, BasementFinSF, BasementSF, GroundSF, HalfBath, Bedroom, Fireplaces, GarageSF, EnclosedPorchSF, and ScreenPorchSF.
+
+## StepWise
+```{r}
+MSE=(summary(mod1)$sigma)^2
+none=lm(Price~1,data=AmesTrain2)
+step(none,scope=list(upper=mod1),scale=MSE)
+
+```
+The best predictors together according to stepwise regression are LotFrontage, LotArea, YearBuilt, YearRemodel, BasementFinSF, BasementSF, GroundSF, HalfBath, Bedroom, Fireplaces, GarageSF, EnclosedPorchSF, and ScreenPorchSF.
+
+## Backward Elimination
+```{r}
+MSE=(summary(mod1)$sigma)^2
+step(mod1,scale=MSE)
+```
+
+The best predictors together according to Backward Elimination are LotFrontage, LotArea, YearBuilt, YearRemodel, BasementFinSF, BasementSF, GroundSF, HalfBath, Bedroom, Fireplaces, GarageSF, EnclosedPorchSF, and ScreenPorchSF.
+
+## Forward Selection
+```{r}
+none=lm(Price~1,data=AmesTrain2)
+step(none,scope=list(upper=mod1),scale=MSE, direction="forward")
+```
+The best predictors together according to Forward Selection are LotFrontage, LotArea, YearBuilt, YearRemodel, BasementFinSF, BasementSF, GroundSF, HalfBath, Bedroom, Fireplaces, GarageSF, EnclosedPorchSF, and ScreenPorchSF.
+
+
+
+After using the methods of Best subsets, stepwise regression, backward elimination, and forward selection, we have determined that the best model to predict Price uses the following predictors: LotFrontage, LotArea, YearBuilt, YearRemodel, BasementFinSF, BasementSF, GroundSF, HalfBath, Bedroom, Fireplaces, GarageSF, EnclosedPorchSF, and ScreenPorchSF.
+
+Every method gave us these predictors as the best predictors to use for a model because these predictors had the lowest Mallow's Cp. The lower the Mallow's Cp, the better the compromise between having little error in the model and not having too many predictors. In this case, this combination of predictors gave a Mallow's Cp of 6.79, which was the lowest possible Mallow's Cp given the predictors. 
+
+Here's the summary for our model:
+
+```{r}
+mod2= lm(Price ~ GroundSF + YearBuilt + BasementSF + YearRemodel + 
+    BasementFinSF + GarageSF + LotArea + Fireplaces + LotFrontage + 
+    Bedroom + ScreenPorchSF + EnclosedPorchSF + HalfBath, data = AmesTrain2)
+summary(mod2)
+```
+
+The following predictors are not significant at a 5% level in this model: EnclosedPorchSF and HalfBath. However, this does not necessarily mean they are bad predictors, as their higher p-values may be inflated due to multicollinearity. Additionally, their p-values are both still below .2, so while they are not significant at a 5% level, that does not necessarily mean they are bad predictors. 
+
+Let's look into the VIF values:
+
+```{r}
+vif(mod2)
+```
+
+VIF is used to detect multicollinearity. A VIF value greater than 5 generally causes concern for substantial multicollinearity, but a value of around 2 or 3 to 5 can still cause concern for moderate multicollinearity. No predictors have a VIF value greater than 5, but there are 2 predictors with VIF values greater than 2.5 that cause concern for moderate multicollinearity. These predictors are GroundSF and YearBuilt. The rest of the predictors have VIF values of between 1 and 2, causing little concern for multicollinearity. 
+
+# Part 2
+
+First we'll check for linearity
+```{r}
+plot(mod2)
+hist(mod2$residuals)
+```
+Looking at the residuals vs fitted values plot, the linearity condition does not seem to be fully met. There appears to be curvature of the residuals, as it dips down and then curves up, suggesting that linearity is not met. 
+
+The zero mean condition seems to be met somewhat well, as the residuals seem to be generally spread around the zero line in the residuals vs. fitted values plot. The zero line seems to be close to passing through the center of the data, but it doesn't quite do so perfectly.
+
+The constant variance condition does not appear to be met, as there is definitely greater variance as fitted values reach around 250 and beyond than before they reach 250. The data is definitely more clustered in the middle of the plot, and there is also some curvature. 
+
+Looking at the normal q-q plot and the histogram, the independence condition appears to be reasonably met. In the normal q-q plot, the points generally follow the line for the most part, although they trail off a little at both tails. The histogram has a general bell curve and does not have a strong skew, further suggesting that the independence condition is met. 
+
+## Checking for unusual studentized residuals
+```{r}
+which(rstudent(mod2) > 3)
+```
+
+The criteria we are using to identify "unsual" cases for studentized residuals is if the studentized residual is greater than 3, then it is "unusual." Based on this criteria, the following indices are unsusual in terms of studentized residuals: 62, 70 198, 202, 374, 537, 572, 581. <b>It is important to note that just because these points are unusual in terms of their studentized residuals doesn't mean that they are influential.</b> 
+
+## Checking for influential points
+
+To check to see if these points are influential, we'll see if the studentized residuals are different or similar to the standardized residuals. If they are similar for a point, the point is not very influential.
+```{r}
+rstudent(mod2)[c(62, 70, 198, 202, 374, 537, 572, 581)]- rstandard(mod2)[c(62, 70, 198, 202, 374, 537, 572, 581)]
+```
+
+None of these points appear to be very influential, as the studentized residuals appear to be similar to the standardized residuals. The point that appears to be most influential is index 198, as the difference is .24. However, this still does not warrant it being called very influential. In case we missed anything, let's see if there are any points that had a greater difference in studentized and standardized residuals than index 198.
+
+```{r}
+which.max(rstudent(mod2)-rstandard(mod2))
+```
+
+It appears that 198 has the greatest difference in studentized and standardized residuals, suggesting that it is the most influential point. However, this point is not very influential. As one final check for influential points, we'll return to the plot showing Cook's distance to see if it shows any influential points.
+
+```{r}
+plot(mod2, 5)
+```
+
+None of the points are outside of a Cook's Distance of 1, or even 0.5, suggesting that no points are substantially influential.
+
+Because no points are substantially influential and all four methods of determining predictors gave us our current predictors, we will not be making any changes to our data or model in Part 2.
+
+# Part 3
+
+## Transformations
+
+The following transformations were tested, with mod3 proving to be the best transformation. mod3 transforms the response with a log function. We decided to try a logarithmic transformation to try to help with the constant variance and curvature/ lack of linearity issue we had originally. 
+```{r}
+mod3= lm(log(Price) ~ GroundSF + YearBuilt + BasementSF + YearRemodel + 
+    BasementFinSF + GarageSF + LotArea + Fireplaces + LotFrontage + 
+    Bedroom + ScreenPorchSF + EnclosedPorchSF + HalfBath, data = AmesTrain2)
+plot(mod3)
+
+mod4= lm((Price)^2 ~ I(GroundSF^2) + I(YearBuilt^2) + I(BasementSF^2) + I(YearRemodel^2) + I(BasementFinSF^2) + I(GarageSF^2) + I(LotArea^2) + I(Fireplaces^2) + I(LotFrontage^2) + I(Bedroom^2) + I(ScreenPorchSF^2) + I(EnclosedPorchSF^2) + I(HalfBath^2), data = AmesTrain2)
+plot(mod4)
+
+mod5= lm((Price)^(1/2) ~ I(GroundSF^(1/2)) + I(YearBuilt^(1/2)) + I(BasementSF^(1/2)) + I(YearRemodel^(1/2)) + I(BasementFinSF^(1/2)) + I(GarageSF^(1/2)) + I(LotArea^(1/2)) + I(Fireplaces^2) + I(LotFrontage^2) + I(Bedroom^2) + I(ScreenPorchSF^2) + I(EnclosedPorchSF^(1/2)) + I(HalfBath^(1/2)), data = AmesTrain2)
+plot(mod5)
+
+AmesTrain2$PorchSF = AmesTrain2$ScreenPorchSF + AmesTrain2$EnclosedPorchSF
+
+mod6=lm(Price ~ GroundSF + YearBuilt + BasementSF + YearRemodel + 
+    BasementFinSF + GarageSF + LotArea + Fireplaces + LotFrontage + 
+    Bedroom + PorchSF + HalfBath, data = AmesTrain2)
+plot(mod6)
+
+mod7=lm(sqrt(Price)~ GroundSF + YearBuilt + BasementSF + YearRemodel + 
+    BasementFinSF + GarageSF + LotArea + Fireplaces + LotFrontage + 
+    Bedroom + PorchSF + HalfBath, data = AmesTrain2)
+plot(mod7)
+                                                                                                                                                                                                                                            
+```
+ As you can see, mod3 performed the best in terms of meeting the conditions of a simple linear model. We'll discuss this in further detail below.
+ 
+ 
+# Part 4 
+
+## Residual Analysis for Fancier Model
+
+```{r}
+plot(mod3)
+hist(mod3$residuals)
+```
+Looking at the residuals vs fitted values plot, the linearity condition seems to be met. There appears to be little to no curvature of the residuals, and the residuals hover around zero, suggesting that the line seems to fit the data and no other nonlinear pattern is clear
+
+The zero mean condition seems to be met as well, as the residuals are spread around the zero line in the residuals vs. fitted value plot. The horizontal zero line in the residuals vs. fitted plot seems to pass through the center of the data.
+
+The constant variance condition also appears to be met, as there appears to be equal variance of residuals at all fitted values in the residuals vs. fitted values plot. 
+
+Looking at the normal q-q plot and the histogram, the independence condition appears to be met. In the normal q-q plot, the points generally follow the line. The two ends of plot trail off a little, but not by a large amount. The histogram has a general bell curve and does not have a strong skew (it may appear skewed left at first but it is really centered at 0 upon further investigation), further suggesting that the independence condition is met.
+
+Our residual analysis supports that our mod3 fits the conditions of a simple linear model.
+
+# Part 5
+
+As our residual analysis suggested that our model fits the conditions of a simple linear model, we made no changes to our model. 
+
+```{r}
+newx= data.frame(HouseStyle="2Story", TotalRooms = 9, YearBuilt= 1995, YearRemodel = 2003, LotArea= 11060, LotConfig = "Corner", LotFrontage= 90, Quality = 7, Condition =  5, ExteriorQ = "Gd",  ExteriorC = "Gd", Foundation = "PConc", BasementFinSF=0, BasementSF= 1150, BasementHt = "Ex", BasementFin = "Unf", BasementFBath = 0, BasementHBath= 0, Heating =  "GasA", HeatingQC= "Ex", CentralAir = "Y", GroundSF = 2314, FirstSF= 1164, SecondSF= 1150, Bedroom = 3, FullBath =2, HalfBath = 1, Fireplaces = 1, GarageCars=2, GarageSF= 502, GarageType= "BuiltIn", GarageQ= "TA" , GarageC= "TA", OpenPorchSF= 274, ScreenPorchSF= 0, EnclosedPorchSF=0 )
+predict.lm(mod3, newx, interval="prediction", level=.95)
+```
+```{r}
+exp(5.211403)
+exp(5.883553)
+
+```
+
+The 95% Prediction Interval for the mean price in thousands at with the conditions listed is (183.3511, 359.0828). This means that we can be 95% confident that the price of an individual house that meets the listed criteria is between 183,351.10 and 359,082.80 dollars.
+
+
+
+
